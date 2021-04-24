@@ -6,6 +6,92 @@ import statistics
 
 ADANCIME_MAX = 2
 
+class Buton:
+    def __init__(
+        self,
+        display=None,
+        left=0,
+        top=0,
+        w=0,
+        h=0,
+        culoareFundal=(53, 80, 115),
+        culoareFundalSel=(89, 134, 194),
+        text="",
+        font="arial",
+        fontDimensiune=16,
+        culoareText=(255, 255, 255),
+        valoare="",
+    ):
+        self.display = display
+        self.culoareFundal = culoareFundal
+        self.culoareFundalSel = culoareFundalSel
+        self.text = text
+        self.font = font
+        self.w = w
+        self.h = h
+        self.selectat = False
+        self.fontDimensiune = fontDimensiune
+        self.culoareText = culoareText
+        fontObj = pygame.font.SysFont(self.font, self.fontDimensiune)
+        self.textRandat = fontObj.render(self.text, True, self.culoareText)
+        self.dreptunghi = pygame.Rect(left, top, w, h)
+        self.dreptunghiText = self.textRandat.get_rect(center=self.dreptunghi.center)
+        self.valoare = valoare
+
+    def selecteaza(self, sel):
+        self.selectat = sel
+        self.deseneaza()
+
+    def selecteazaDupacoord(self, coord):
+        if self.dreptunghi.collidepoint(coord):
+            self.selecteaza(True)
+            return True
+        return False
+
+    def updateDreptunghi(self):
+        self.dreptunghi.left = self.left
+        self.dreptunghi.top = self.top
+        self.dreptunghiText = self.textRandat.get_rect(center=self.dreptunghi.center)
+
+    def deseneaza(self):
+        culoareF = self.culoareFundalSel if self.selectat else self.culoareFundal
+        pygame.draw.rect(self.display, culoareF, self.dreptunghi)
+        self.display.blit(self.textRandat, self.dreptunghiText)
+
+
+class GrupButoane:
+    def __init__(
+        self, listaButoane=[], indiceSelectat=0, spatiuButoane=10, left=0, top=0
+    ):
+        self.listaButoane = listaButoane
+        self.indiceSelectat = indiceSelectat
+        self.listaButoane[self.indiceSelectat].selectat = True
+        self.top = top
+        self.left = left
+        leftCurent = self.left
+        for b in self.listaButoane:
+            b.top = self.top
+            b.left = leftCurent
+            b.updateDreptunghi()
+            leftCurent += spatiuButoane + b.w
+
+    def selecteazaDupacoord(self, coord):
+        for ib, b in enumerate(self.listaButoane):
+            if b.selecteazaDupacoord(coord):
+                self.listaButoane[self.indiceSelectat].selecteaza(False)
+                self.indiceSelectat = ib
+                return True
+        return False
+
+    def deseneaza(self):
+        # atentie, nu face wrap
+        for b in self.listaButoane:
+            b.deseneaza()
+
+    def getValoare(self):
+        return self.listaButoane[self.indiceSelectat].valoare
+
+
 class Joc:
     """
     Clasa care defineste jocul. Se va schimba de la un joc la altul.
@@ -90,6 +176,10 @@ class Joc:
                         dim_celula - 10,
                     )
                     cls.linii.append(patr)
+        
+        cls.btn_cedeaza = Buton(cls.display, left=cls.dim_celula // 2 - 10, top=10,
+                                w=100, h = 25, culoareFundal=(252, 186, 3),
+                                text="Cedeaza joc", valoare="forfeit")
     
     def deseneaza_grid(self, stare=None):
 
@@ -164,8 +254,13 @@ class Joc:
 
         display.blit(text_x, dreptunghi_x)
         display.blit(text_zero, dreptunghi_zero)
+
+
         
+        if not(self.final() or (stare is not None and stare.cedat)):
+            Joc.btn_cedeaza.deseneaza()
         pygame.display.update()
+        
 
     @classmethod
     def jucator_opus(cls, jucator):
@@ -367,6 +462,8 @@ class Stare:
         # cea mai buna mutare din lista de mutari posibile pentru jucatorul curent
         self.stare_aleasa = None
 
+        self.cedat = False
+
     def mutari(self):
         l_mutari = self.tabla_joc.mutari(self.j_curent)
         juc_opus = Joc.jucator_opus(self.j_curent)
@@ -387,90 +484,6 @@ class Stare:
         sir += "scor x: " + str(self.tabla_joc.scor_x) + "\nscor 0: " + str(self.tabla_joc.scor_zero)
         return sir
 
-class Buton:
-    def __init__(
-        self,
-        display=None,
-        left=0,
-        top=0,
-        w=0,
-        h=0,
-        culoareFundal=(53, 80, 115),
-        culoareFundalSel=(89, 134, 194),
-        text="",
-        font="arial",
-        fontDimensiune=16,
-        culoareText=(255, 255, 255),
-        valoare="",
-    ):
-        self.display = display
-        self.culoareFundal = culoareFundal
-        self.culoareFundalSel = culoareFundalSel
-        self.text = text
-        self.font = font
-        self.w = w
-        self.h = h
-        self.selectat = False
-        self.fontDimensiune = fontDimensiune
-        self.culoareText = culoareText
-        fontObj = pygame.font.SysFont(self.font, self.fontDimensiune)
-        self.textRandat = fontObj.render(self.text, True, self.culoareText)
-        self.dreptunghi = pygame.Rect(left, top, w, h)
-        self.dreptunghiText = self.textRandat.get_rect(center=self.dreptunghi.center)
-        self.valoare = valoare
-
-    def selecteaza(self, sel):
-        self.selectat = sel
-        self.deseneaza()
-
-    def selecteazaDupacoord(self, coord):
-        if self.dreptunghi.collidepoint(coord):
-            self.selecteaza(True)
-            return True
-        return False
-
-    def updateDreptunghi(self):
-        self.dreptunghi.left = self.left
-        self.dreptunghi.top = self.top
-        self.dreptunghiText = self.textRandat.get_rect(center=self.dreptunghi.center)
-
-    def deseneaza(self):
-        culoareF = self.culoareFundalSel if self.selectat else self.culoareFundal
-        pygame.draw.rect(self.display, culoareF, self.dreptunghi)
-        self.display.blit(self.textRandat, self.dreptunghiText)
-
-
-class GrupButoane:
-    def __init__(
-        self, listaButoane=[], indiceSelectat=0, spatiuButoane=10, left=0, top=0
-    ):
-        self.listaButoane = listaButoane
-        self.indiceSelectat = indiceSelectat
-        self.listaButoane[self.indiceSelectat].selectat = True
-        self.top = top
-        self.left = left
-        leftCurent = self.left
-        for b in self.listaButoane:
-            b.top = self.top
-            b.left = leftCurent
-            b.updateDreptunghi()
-            leftCurent += spatiuButoane + b.w
-
-    def selecteazaDupacoord(self, coord):
-        for ib, b in enumerate(self.listaButoane):
-            if b.selecteazaDupacoord(coord):
-                self.listaButoane[self.indiceSelectat].selecteaza(False)
-                self.indiceSelectat = ib
-                return True
-        return False
-
-    def deseneaza(self):
-        # atentie, nu face wrap
-        for b in self.listaButoane:
-            b.deseneaza()
-
-    def getValoare(self):
-        return self.listaButoane[self.indiceSelectat].valoare
 
 
 ############# ecran initial ########################
@@ -559,14 +572,17 @@ def stop_game(stare):
     dimFont = 16
     culoareFont = (0,0,0)
     text = ""
-    if stare.tabla_joc.scor_x < stare.tabla_joc.scor_zero:
-        culoareFont = Joc.CULOARE_ZERO
-        text = "A castigat " + stare.j_curent
-    elif stare.tabla_joc.scor_x > stare.tabla_joc.scor_zero:
-        culoareFont = Joc.CULOARE_X
-        text = "A castigat " + stare.j_curent
+    if stare.cedat:
+        text = "A castigat " + stare.tabla_joc.jucator_opus(stare.j_curent)
     else:
-        text = "Remiza!"
+        if stare.tabla_joc.scor_x < stare.tabla_joc.scor_zero:
+            culoareFont = Joc.CULOARE_ZERO
+            text = "A castigat " + stare.j_curent
+        elif stare.tabla_joc.scor_x > stare.tabla_joc.scor_zero:
+            culoareFont = Joc.CULOARE_X
+            text = "A castigat " + stare.j_curent
+        else:
+            text = "Remiza!"
 
     fontObj = pygame.font.SysFont(font, dimFont)
     textRandat = fontObj.render(text, True, culoareFont)
@@ -589,7 +605,9 @@ def stop_game(stare):
 ##                               MINIMAX                                      ##
 ################################################################################
 
+numar_noduri = 0
 def min_max(stare):
+    global numar_noduri
 
     if stare.adancime == 0 or stare.tabla_joc.final():
         stare.scor = stare.tabla_joc.estimeaza_scor(stare.adancime)
@@ -597,6 +615,7 @@ def min_max(stare):
 
     # calculez toate mutarile posibile din starea curenta
     stare.mutari_posibile = stare.mutari()
+    numar_noduri += len(stare.mutari_posibile)
 
     # aplic algoritmul minimax pe toate mutarile posibile (calculand astfel subarborii lor)
     mutari_scor = [min_max(mutare) for mutare in stare.mutari_posibile]
@@ -618,6 +637,8 @@ def min_max(stare):
 ################################################################################
 
 def alpha_beta(alpha, beta, stare):
+    global numar_noduri
+
     if stare.adancime == 0 or stare.tabla_joc.final():
         stare.scor = stare.tabla_joc.estimeaza_scor(stare.adancime, "not default")
         return stare
@@ -626,6 +647,7 @@ def alpha_beta(alpha, beta, stare):
         return stare  # este intr-un interval invalid deci nu o mai procesez
 
     stare.mutari_posibile = stare.mutari()
+    numar_noduri += len(stare.mutari_posibile)
 
     if stare.j_curent == Joc.JMAX:
         scor_curent = float("-inf")
@@ -663,9 +685,10 @@ def alpha_beta(alpha, beta, stare):
 
 times = []
 t_final = -1
+node_counts = []
 
 def main():
-    global ADANCIME_MAX, times, t_final
+    global ADANCIME_MAX, times, t_final, numar_noduri, node_counts
 
     pygame.init()
     pygame.display.set_caption("Croitoru Tudor - Dots & Boxes")
@@ -705,6 +728,13 @@ def main():
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     pos = pygame.mouse.get_pos()  # coordonatele cursorului
 
+                    if Joc.btn_cedeaza.selecteazaDupacoord(pos):
+                        Joc.btn_cedeaza.selecteaza(True)
+                        stare_curenta.cedat = True
+                        stare_curenta.tabla_joc.deseneaza_grid(stare_curenta)
+                        stop_game(stare_curenta)
+                        return
+
                     for np in range(len(Joc.linii)):
                         if Joc.linii[np].collidepoint(pos) and stare_curenta.tabla_joc.matr[np] == Joc.GOL:
                             stare_curenta.tabla_joc.matr[np] = stare_curenta.j_curent
@@ -730,6 +760,7 @@ def main():
                             # testez daca jocul a ajuns intr-o stare finala
                             # si afisez un mesaj corespunzator in caz ca da
                             if afis_daca_final(stare_curenta):
+                                stare_curenta.tabla_joc.deseneaza_grid(stare_curenta)
                                 stop_game(stare_curenta)
                                 return
 
@@ -758,12 +789,16 @@ def main():
                 + " milisecunde."
             )
             print("Estimare: " + str(stare_actualizata.stare_aleasa.scor))
+            print("Numar de noduri generate: " + str(numar_noduri))
+            node_counts.append(numar_noduri)
+            numar_noduri = 0 # resetam
 
             times.append(t_dupa - t_inainte)
             t_final = t_dupa
 
             stare_curenta.tabla_joc.deseneaza_grid(stare_curenta)
             if afis_daca_final(stare_curenta):
+                stare_curenta.tabla_joc.deseneaza_grid(stare_curenta)
                 stop_game(stare_curenta)
                 return 
 
@@ -777,7 +812,22 @@ def main():
 if __name__ == "__main__":
     t_inceput = int(round(time.time() * 1000))
     main()
-    print("Jocul a durat " + str(t_final - t_inceput) + "ms\n")
+    print("\n\nJocul a durat " + str(t_final - t_inceput) + "ms\n\n")
 
     print("Statistics")
-    print("Min time: {}ms\nMedian time: {}ms\nMax time: {}ms\n".format(min(times), statistics.median(times), max(times)))
+    print(
+    """
+Min time: {} ms
+Average time: {} ms
+Median time: {} ms
+Max time: {} ms
+    """.format(min(times), sum(times)/len(times) , statistics.median(times), max(times))
+    )
+    print(
+    """
+Min # nodes: {} nodes
+Average # nodes: {}nodes
+Median # nodes: {} nodes
+Max # nodes: {}nodes
+    """.format(min(node_counts), sum(node_counts)/len(node_counts) , statistics.median(node_counts), max(node_counts))
+    )
